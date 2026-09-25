@@ -7,4 +7,12 @@ function structured():ProductCandidate[]{const found:ProductCandidate[]=[];docum
 function metadata():ProductCandidate[]{if(isSearchPage())return[];const get=(p:string)=>document.querySelector(`meta[property="${p}"],meta[name="${p}"]`)?.getAttribute('content')||'';const img=absolute(get('og:image'));if(!img)return[];const title=get('og:title')||document.title;return[{id:crypto.randomUUID(),title,description:get('og:description')||undefined,productUrl:location.href,imageUrls:[img],category:categoryFromText(title),confidence:.7,source:'og'}]}
 function dom():ProductCandidate[]{const out:ProductCandidate[]=[];const imgs=[...document.images].filter(i=>i.width>120&&i.height>120&&imageOK(i.currentSrc||i.src)).slice(0,24);for(const img of imgs){const card=img.closest('article,li,[class*="product" i],[class*="card" i]')||img.parentElement;const text=(card?.textContent||'').replace(/\s+/g,' ').trim();const title=img.alt||card?.querySelector('h1,h2,h3,h4')?.textContent?.trim()||text.slice(0,90)||'Product';out.push({id:crypto.randomUUID(),title,price:price(text),currency:text.includes('₹')?'INR':text.includes('$')?'USD':undefined,productUrl:(img.closest('a') as HTMLAnchorElement)?.href||location.href,imageUrls:[img.currentSrc||img.src],category:categoryFromText(title),confidence:img.alt?0.55:0.38,source:'dom'});}return out}
 function scan(){const raw=[...structured(),...metadata(),...dom()];const seen=new Set<string>();return raw.filter(p=>{const key=(p.productUrl||p.imageUrls[0]).split('?')[0];if(seen.has(key))return false;seen.add(key);return true}).sort((a,b)=>b.confidence-a.confidence).slice(0,16)}
-chrome.runtime.onMessage.addListener((m,_,reply)=>{if(m.type==='SCAN_PRODUCTS'){reply({products:scan(),url:location.href,title:document.title});}return true;});
+const listenerKey = `wearwiseScan-${chrome.runtime.id}`;
+const scope = globalThis as typeof globalThis & { [key: string]: unknown };
+type ScanListener = Parameters<typeof chrome.runtime.onMessage.addListener>[0];
+if (typeof scope[listenerKey] === 'function') {
+  try { chrome.runtime.onMessage.removeListener(scope[listenerKey] as ScanListener); } catch { /* Old extension context. */ }
+}
+const listener: ScanListener = (m,_,reply)=>{if(m.type==='SCAN_PRODUCTS'){reply({products:scan(),url:location.href,title:document.title});}return false;};
+chrome.runtime.onMessage.addListener(listener);
+scope[listenerKey] = listener;

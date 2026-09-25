@@ -1,0 +1,2 @@
+import { describe,it,expect } from 'vitest'; import { categoryFromText,profileRequirements } from '../src/categories.js';
+describe('category system',()=>{it('normalizes common categories',()=>{expect(categoryFromText('Blue running shoes')).toBe('shoes');expect(categoryFromText('Linen dress')).toBe('dresses');});it('requires category-specific assets',()=>{expect(profileRequirements.shoes).toEqual(['foot']);expect(profileRequirements.tops).toContain('face');});});

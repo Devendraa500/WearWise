@@ -1,0 +1,8 @@
+import { mkdir, writeFile, rm, readFile } from 'node:fs/promises'; import { join, basename } from 'node:path'; import { randomUUID } from 'node:crypto';
+const root = process.env.UPLOAD_DIR || './uploads';
+export async function store(buffer: Buffer, extension='bin') { await mkdir(root,{recursive:true}); const key=`${randomUUID()}.${extension}`; await writeFile(join(root,key),buffer); return key; }
+export async function remove(key:string) { await rm(join(root,basename(key)),{force:true}); }
+export const privateUrl=(key:string)=>`/api/files/${encodeURIComponent(basename(key))}`;
+export async function asDataUrl(key:string,mimeType:string) { return `data:${mimeType};base64,${(await readFile(join(root,basename(key)))).toString('base64')}`; }
+export function isSafeRemoteImageUrl(value:string) { try { const u=new URL(value); if(u.protocol!=='https:')return false; const host=u.hostname.toLowerCase(); return !(['localhost','0.0.0.0','::1'].includes(host)||/^127\./.test(host)||/^10\./.test(host)||/^192\.168\./.test(host)||/^169\.254\./.test(host)||/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)); } catch{return false;} }
+export async function importRemoteImage(url:string) { if(!isSafeRemoteImageUrl(url))throw new Error('The image URL must use public HTTPS.'); const response=await fetch(url,{signal:AbortSignal.timeout(20_000),redirect:'error'}); const mime=response.headers.get('content-type')||''; if(!response.ok||!/^image\/(jpeg|png|webp)$/.test(mime))throw new Error('The AI provider returned an invalid image.'); if(Number(response.headers.get('content-length')||0)>12*1024*1024)throw new Error('The provider image is too large.'); return store(Buffer.from(await response.arrayBuffer()),mime.split('/')[1]); }

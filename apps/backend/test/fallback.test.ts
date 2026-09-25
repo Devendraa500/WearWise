@@ -1,0 +1,17 @@
+import { describe,it,expect,vi } from 'vitest';
+import { FallbackProvider } from '../src/ai/fallback.js';
+import { ProviderError, type ImageAdapter, type Input } from '../src/ai/adapters.js';
+import { publicIPv4 } from '../src/ai/images.js';
+const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3ioAAAAASUVORK5CYII=';
+const input:Input={modelImage:png,productImage:png,prompt:'Exact shirt',category:'tops',background:'original'};
+const adapter=(name:string,render:ImageAdapter['render'],available=true):ImageAdapter=>({name,render,available:()=>available,supports:()=>true});
+async function finish(p:FallbackProvider,id:string) {for(let n=0;n<100;n++){const s=await p.getGenerationStatus(id);if(['COMPLETED','FAILED','CANCELLED'].includes(s.status))return s;await new Promise(r=>setTimeout(r,1));}throw Error('job did not terminate');}
+describe('ordered provider failover',()=>{
+  it('keeps successful local generation local',async()=>{const cloud=vi.fn();const p=new FallbackProvider([adapter('catvton',async()=>png),adapter('gemini',cloud)]);const j=await p.generateTryOn(input);expect(await finish(p,j.providerJobId)).toMatchObject({status:'COMPLETED',provider:'catvton',attempts:['catvton']});expect(cloud).not.toHaveBeenCalled();});
+  it('fails over in the requested order on service failure',async()=>{const fail=async()=>{throw Error('offline')};const p=new FallbackProvider([adapter('catvton',fail),adapter('gemini',fail),adapter('openai',async()=>png)]);const j=await p.generateTryOn(input);expect(await finish(p,j.providerJobId)).toMatchObject({status:'COMPLETED',provider:'openai',attempts:['catvton','gemini','openai']});});
+  it('skips missing keys and stops at exhaustion',async()=>{const render=vi.fn();const p=new FallbackProvider([adapter('gemini',render,false)]);const j=await p.generateTryOn(input);expect(await finish(p,j.providerJobId)).toMatchObject({status:'FAILED',errorCode:'ALL_PROVIDERS_UNAVAILABLE'});expect(render).not.toHaveBeenCalled();});
+  it('does not retry refusals on another provider',async()=>{const cloud=vi.fn();const p=new FallbackProvider([adapter('gemini',async()=>{throw new ProviderError('NO_IMAGE_OR_REFUSAL',false)}),adapter('openai',cloud)]);const j=await p.generateTryOn(input);expect((await finish(p,j.providerJobId)).status).toBe('FAILED');expect(cloud).not.toHaveBeenCalled();});
+  it('cancellation stops fallback and late output',async()=>{let release!:(s:string)=>void;const cloud=vi.fn();const p=new FallbackProvider([adapter('catvton',()=>new Promise(r=>release=r)),adapter('gemini',cloud)]);const j=await p.generateTryOn(input);await new Promise(r=>setTimeout(r,1));await p.cancelGeneration(j.providerJobId);release(png);await new Promise(r=>setTimeout(r,1));expect((await p.getGenerationStatus(j.providerJobId)).status).toBe('CANCELLED');expect(cloud).not.toHaveBeenCalled();});
+  it('rejects private network image destinations',()=>{for(const ip of ['127.0.0.1','10.1.1.1','192.168.1.1','169.254.169.254','100.64.0.1','::1'])expect(publicIPv4(ip)).toBe(false);expect(publicIPv4('8.8.8.8')).toBe(true);});
+  it('advances after an attempt times out',async()=>{const wait:ImageAdapter['render']=(_i,s)=>new Promise((_resolve,reject)=>s.addEventListener('abort',()=>reject(s.reason),{once:true}));const p=new FallbackProvider([adapter('catvton',wait),adapter('gemini',async()=>png)],10);const j=await p.generateTryOn(input);expect(await finish(p,j.providerJobId)).toMatchObject({status:'COMPLETED',provider:'gemini',attempts:['catvton','gemini']});});
+});

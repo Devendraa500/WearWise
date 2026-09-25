@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+uploads
+*.log
+services/catvton/vendor/
+services/catvton/.venv/
+__pycache__/
+*.pyc

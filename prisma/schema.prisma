@@ -1,0 +1,9 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+model User { id String @id @default(cuid()) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt profile Profile? }
+model Profile { id String @id @default(cuid()) userId String @unique name String createdAt DateTime @default(now()) updatedAt DateTime @updatedAt user User @relation(fields:[userId],references:[id],onDelete:Cascade) assets ProfileAsset[] jobs TryOnJob[] }
+model ProfileAsset { id String @id @default(cuid()) profileId String type String storageKey String mimeType String width Int height Int createdAt DateTime @default(now()) profile Profile @relation(fields:[profileId],references:[id],onDelete:Cascade) @@index([profileId,type]) }
+model Product { id String @id @default(cuid()) sourceUrl String title String brand String? category String? price Decimal? currency String? createdAt DateTime @default(now()) images ProductImage[] jobs TryOnJob[] @@index([sourceUrl]) }
+model ProductImage { id String @id @default(cuid()) productId String url String storageKey String? width Int? height Int? rank Int @default(0) product Product @relation(fields:[productId],references:[id],onDelete:Cascade) }
+model TryOnJob { id String @id @default(cuid()) profileId String productId String provider String status String errorCode String? createdAt DateTime @default(now()) startedAt DateTime? completedAt DateTime? profile Profile @relation(fields:[profileId],references:[id]) product Product @relation(fields:[productId],references:[id]) result TryOnResult? @@index([status]) }
+model TryOnResult { id String @id @default(cuid()) tryOnJobId String @unique storageKey String thumbnailStorageKey String? createdAt DateTime @default(now()) job TryOnJob @relation(fields:[tryOnJobId],references:[id],onDelete:Cascade) }

@@ -1,0 +1,7 @@
+export type AssetType = 'fullBody' | 'upperBody' | 'lowerBody' | 'foot' | 'face' | 'additional';
+export type CategorySlug = 'tops' | 'dresses' | 'pants' | 'shoes' | 'jewelry' | 'accessories';
+export type JobStatus = 'CREATED' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export interface ProductCandidate { id: string; title: string; brand?: string; description?: string; price?: number; currency?: string; productUrl?: string; imageUrls: string[]; category?: CategorySlug; confidence: number; source: 'jsonld'|'og'|'dom'|'image-analysis'|'page-metadata'; }
+export interface ExtensionMessage { type: 'SCAN_PRODUCTS' | 'PRODUCTS_DETECTED' | 'GET_PAGE_CONTEXT'; products?: ProductCandidate[]; }
+export const profileRequirements: Record<CategorySlug, AssetType[]> = { tops:['fullBody','upperBody','face'], dresses:['fullBody','upperBody','face'], pants:['fullBody','lowerBody'], shoes:['foot'], jewelry:['face','upperBody'], accessories:['fullBody','face'] };
+export const categoryFromText = (value = ''): CategorySlug | undefined => { const v=value.toLowerCase(); if(/shoe|sneaker|boot|sandal/.test(v)) return 'shoes'; if(/dress|gown/.test(v)) return 'dresses'; if(/pant|trouser|jean|short/.test(v)) return 'pants'; if(/necklace|jewell|earring|ring/.test(v)) return 'jewelry'; if(/bag|belt|accessor/.test(v)) return 'accessories'; if(/shirt|tee|t-shirt|top|jacket|blazer/.test(v)) return 'tops'; };

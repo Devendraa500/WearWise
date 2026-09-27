@@ -2,16 +2,12 @@
 
 The bridge uses the official CatVTON pipeline and AutoMasker, with one GPU inference at a time. Inputs and outputs remain in memory. Supports tops, pants and dresses with the original scene. Shoes, jewellery, accessories, and scene changes are routed to configured cloud fallbacks.
 
-For the RTX 4050 6 GB laptop GPU detected on this workstation, use the default 512×768 resolution, 25 steps. Set `CATVTON_WIDTH=768` and `CATVTON_HEIGHT=1024` only if a successful 512×768 generation leaves enough VRAM. CatVTON's upstream 1024×768 estimate is below 8 GB VRAM, so the higher preset may exhaust 6 GB.
-
 ## Windows setup
-
-First run `nvidia-smi`. On this computer it currently reports **GPU is lost; reboot the system to recover this GPU**. Reboot Windows and verify the GPU is visible before installing CUDA dependencies. This project does not restart your computer automatically.
 
 Use an isolated Python 3.10 environment. WSL2 with NVIDIA CUDA support is recommended because CatVTON's DensePose dependencies can be difficult to install on native Windows. Run from the repository root inside that environment:
 
 ```bash
-# Source is already downloaded on this workstation. For a fresh checkout:
+
 git clone https://github.com/Zheng-Chong/CatVTON.git services/catvton/vendor/CatVTON
 git -C services/catvton/vendor/CatVTON checkout 7818397f25613beedb3d861a34769f607cfcf3b1
 python3.10 -m venv services/catvton/.venv
@@ -34,9 +30,6 @@ In the root `.env`, set `AI_PROVIDER=auto`. Start this bridge in one terminal, a
 
 Cloud fallback is disabled until `ALLOW_CLOUD_FALLBACK=true`; enabling it allows photographs to be sent to Gemini and then OpenAI, potentially incurring charges. Missing keys are skipped. `GEMINI_API_KEY` and `OPENAI_API_KEY` remain on the backend. Mock results are available only when explicitly selecting `AI_PROVIDER=mock`.
 
-## Verification limits
-
-The bridge has been syntax-checked; actual CUDA inference has not been verified on this workstation because the GPU driver cannot currently access the device. Dependency installation and model downloads remain setup steps. Unit tests for provider ordering use controlled responses, not a real GPU or paid APIs.
 
 ## Attribution
 
